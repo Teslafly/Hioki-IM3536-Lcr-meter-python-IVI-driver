@@ -2,7 +2,7 @@
 
 Python Interchangeable Virtual Instrument Library
 
-Copyright (c) 20115 Marshall Scholz
+Copyright (c) 2015 Marshall Scholz
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -43,35 +43,6 @@ MeasurementFunctionMapping = {
         'capacitance': 'cap',
         'continuity': 'cont',}
 
-
-MeasurementRangeMapping = {
-        'dc_volts': 'volt:dc:range',
-        'ac_volts': 'volt:ac:range',
-        'dc_current': 'curr:dc:range',
-        'ac_current': 'curr:ac:range',
-        'two_wire_resistance': 'res:range',
-        'four_wire_resistance': 'fres:range',
-        'frequency': 'freq:range:lower',
-        'period': 'per:range:lower',
-        'capacitance': 'cap:range'}
-
-MeasurementAutoRangeMapping = {
-        'dc_volts': 'volt:dc:range:auto',
-        'ac_volts': 'volt:ac:range:auto',
-        'dc_current': 'curr:dc:range:auto',
-        'ac_current': 'curr:ac:range:auto',
-        'two_wire_resistance': 'res:range:auto',
-        'four_wire_resistance': 'fres:range:auto',
-        'capacitance': 'cap:range:auto'}
-
-MeasurementResolutionMapping = {
-        'dc_volts': 'volt:dc:resolution',
-        'ac_volts': 'volt:ac:resolution',
-        'dc_current': 'curr:dc:resolution',
-        'ac_current': 'curr:ac:resolution',
-        'two_wire_resistance': 'res:resolution',
-        'four_wire_resistance': 'fres:resolution'}
-
 TriggerSourceMapping = {
         'bus': 'bus',
         'external': 'ext',
@@ -104,7 +75,6 @@ IQSource = set(['digital_modulation_base', 'cdma_base', 'tdma_base', 'arb_genera
 DigitalModulationBaseDataSource = set(['external', 'prbs', 'bit_sequence'])
 DigitalModulationBasePRBSType = set(['prbs9', 'prbs11', 'prbs15', 'prbs16', 'prbs20', 'prbs21', 'prbs23'])
 ClockType = set(['bit', 'symbol'])
-
 
 #actual stuff
 
@@ -144,6 +114,32 @@ ParameterMapping = {
         'NO_PARAMETER': 'OFF',
         }
 
+
+ParameterBitMapping = {
+        # for :MEASure:ITEM commands
+        # param : [bitNum, regNum]
+        # reg0
+        'IMPEDANCE':[0,0],
+        'ADMITTANCE':[1,0],
+        'IMPEDANCE_PHASE_ANGLE':[2,0],
+        'EQUIVALENT_SERIES_CAPACITANCE':[3,0],
+        'EQUIVALENT_PARALELL_CAPACITANCE':[4,0],
+        'LOSS_FACTOR':[5,0],
+        'EQUIVALENT_SERIES_INDUCTANCE':[6,0],
+        'EQUIVALENT_PARALELL_INDUCTANCE':[7,0],
+        # reg1
+        'Q_FACTOR': [0,1],
+        'EQUIVALENT_SERIES_RESISTANCE': [1,1],
+        'EQUIVALENT_PARALELL_RESISTANCE': [3,1],
+        'CONDUCTANCE': [2,1],
+        'REACTANCE': [4,1],
+        'SUBSEPTANCE': [5,1],
+        'DC_RESISTANCE': [6,1],
+        # reg2
+        'CONDUCTIVITY': [0,2],
+        'PERMITTIVITY': [1,2],
+        }
+
 class hiokiIM3536(ivi.scpi.common.IdnCommand,
              ivi.scpi.common.ErrorQuery,
              ivi.scpi.common.Reset,
@@ -167,6 +163,9 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         self._identity_specification_minor_version = 0
         self._identity_supported_instrument_models = ['IM3536']
 
+        self._minimum_meas_frequency = 4.0  #4 Hz
+        self._maximum_meas_frequency = 8000000.0 # 8 MHz
+
         self._mode = 'lcr'
         self._measurement_frequency = 1000.0
         self._measurement_range = 4
@@ -180,6 +179,8 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         self._measurment_limit_v = 5
         self._measurment_averaging = 'OFF'
 
+        self._rdc_mode_enabled = False
+
         self._self_test_delay = 5
 
         self._disable = False
@@ -191,6 +192,62 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
                         ivi.Doc("""
                         Specifies the ac frequency applied to the test device
                         """))
+
+
+
+        self.ParameterMapping = {
+            # for :param commands
+            # 'param' : 'internal_designation'
+            'IMPEDANCE': 'Z',
+            'ADMITTANCE': 'Y',
+            'IMPEDANCE_PHASE_ANGLE': 'PHASE',
+            'REACTANCE': 'X',
+            'CONDUCTANCE': 'G',
+            'SUBSEPTANCE': 'B',
+            'LOSS_FACTOR': 'D',
+            'Q_FACTOR': 'Q',
+            'DC_RESISTANCE': 'RDC',
+            'CONDUCTIVITY': 'S',
+            'PERMITTIVITY': 'E',
+            'EQUIVALENT_SERIES_RESISTANCE': 'RS',
+            'EQUIVALENT_PARALELL_RESISTANCE': 'RP',
+            'EQUIVALENT_SERIES_INDUCTANCE': 'LS',
+            'EQUIVALENT_PARALELL_INDUCTANCE': 'LP',
+            'EQUIVALENT_SERIES_CAPACITANCE': 'CS',
+            'EQUIVALENT_PARALELL_CAPACITANCE': 'CP',
+            'NO_PARAMETER': 'OFF',
+            }
+
+        self.ParameterBitMapping = {
+            # for :MEASure:ITEM commands
+            # param : [bitNum, regNum]
+            # reg0
+            'IMPEDANCE':[0,0],
+            'ADMITTANCE':[1,0],
+            'IMPEDANCE_PHASE_ANGLE':[2,0],
+            'EQUIVALENT_SERIES_CAPACITANCE':[3,0],
+            'EQUIVALENT_PARALELL_CAPACITANCE':[4,0],
+            'LOSS_FACTOR':[5,0],
+            'EQUIVALENT_SERIES_INDUCTANCE':[6,0],
+            'EQUIVALENT_PARALELL_INDUCTANCE':[7,0],
+            # reg1
+            'Q_FACTOR': [0,1],
+            'EQUIVALENT_SERIES_RESISTANCE': [1,1],
+            'EQUIVALENT_PARALELL_RESISTANCE': [3,1],
+            'CONDUCTANCE': [2,1],
+            'REACTANCE': [4,1],
+            'SUBSEPTANCE': [5,1],
+            'DC_RESISTANCE': [6,1],
+            # reg2
+            'CONDUCTIVITY': [0,2],
+            'PERMITTIVITY': [1,2],
+            }
+
+        #make bitsorted list of above dict keys
+        self.sortedParameterBitMappingKeys = \
+            self._generate_sorted_param_map_keys(self.ParameterBitMapping)
+
+
 
     # FIXME: Most of the stuff in this class is wrong, blindly copied from
     # another driver.  Mostly harmless from the way we currently use it,
@@ -220,9 +277,32 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
             self.utility_reset()
 
         #instrument automatically enters remote control state whenever we write to it
-        self._write(":pres") # returns to known preset values. a "factory reset"
+        #self._write(":pres") # returns to known preset values. a "factory reset"
 
+    #redundant, error checking parameter setter
+    def _set_param(self, cmd, value, delay=0.0, rnd=None, timeout=10 ):
+        cmddelay = delay
+        timeo = timeout
+        while (timeo > 0):
+            cmddelay = cmddelay + (0.01 * cmddelay) #delay gets exponentially longer with each failed command.
+            if (rnd == None):
+                self._write(cmd + " " + value)
+                time.sleep(cmddelay) #some equipment will fail to apply parameter if asked about that same parameter very short succession.
+                read = origRead = self._ask(cmd + "?")[0:len(value)]
+            else:
+                value = round(float(value),rnd)
+                self._write(cmd + " %e" % value)
+                time.sleep(cmddelay)
+                read = origRead = self._ask(cmd + "?")
+                read = round(float(read),rnd)
+            if(read == value):
+                break
+            timeo -= 1
 
+        if (timeo <= 0):
+            raise AssertionError("Timeout during setting of %s. expecting '%s', got '%s'" % (cmd, value, read))
+
+        return origRead
 
     def _load_id_string(self):
         if self._driver_operation_simulate:
@@ -262,6 +342,9 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     def _utility_lock_object(self):
         pass
 
+    def _utility_unlock_object(self):
+        pass
+
     def _utility_reset(self):
         if not self._driver_operation_simulate:
             self._write("*RST")
@@ -282,65 +365,60 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
                 message = "Self test failed"
         return (code, message)
 
-    def _utility_unlock_object(self):
-        pass
+    #
+    # def _get_disable(self):
+    #     if not self._driver_operation_simulate and not self._get_cache_valid():
+    #         resp = self._ask("disable?").split(' ')[1]
+    #         self._disable = bool(int(resp))
+    #         self._set_cache_valid()
+    #     return self._disable
+    #
+    # def _set_disable(self, value):
+    #     value = bool(value)
+    #     if not self._driver_operation_simulate:
+    #         self._write("disable %d" % (int(value)))
+    #     self._disable = value
+    #     self._set_cache_valid()
+
 
 #instrument specific stuff
-#actually do error checking here.
+#actually need to do error checking here.
 
-    #redundant, error checking parameter setter
-    def _set_param(self, cmd, value, delay=0.0, rnd=None, timeout=10 ):
-        cmddelay = delay
-        timeo = timeout
-        while (timeo > 0):
-            cmddelay = cmddelay + 0.01 #delay gets steadily longer with each failed command.
-            if (rnd == None):
-                self._write(cmd + " " + value)
-                time.sleep(cmddelay) #some equipment will fail to apply parameter if asked about that same parameter very short succession.
-                read = origRead = self._ask(cmd + "?")[0:len(value)]
-            else:
-                value = round(float(value),rnd)
-                self._write(cmd + " %e" % value)
-                time.sleep(cmddelay)
-                read = origRead = self._ask(cmd + "?")
-                read = round(float(read),rnd)
-            if(read == value):
-                break
-            timeo -= 1
 
-        if (timeo <= 0):
-            raise AssertionError("Timeout during setting of %s. expecting '%s', got '%s'" % (cmd, value, read))
-
-        return origRead
 
 
     #Measurement Mode
     def _get_mode(self):
         if not self._driver_operation_simulate and not self._get_cache_valid():
-            resp = self._ask("mode?").split(' ')[1]
+            resp = self._ask("mode?").split(' ')[0]
             self._set_cache_valid()
-        return self._attenuation
+            self._mode = resp
+        return self._mode
 
     def _set_mode(self, value):
         #value can = LCR, CONT (continuous)
+        if value not in OperationMode:
+            raise ivi.ValueNotSupportedException()
         if not self._driver_operation_simulate:
             self._write("mode %e" % (value))
-        self._attenuation = value
+        self._mode = value
         self._set_cache_valid()
 
     #measurement frequency
     def _get_measurement_frequency(self):
         if not self._driver_operation_simulate and not self._get_cache_valid():
-            resp = self._ask("freq?").split()[1]
+            resp = self._ask("freq?").split()[0]
             self._measurement_frequency = float(resp)
             self._set_cache_valid()
         return self._measurement_frequency
 
     def _set_measurement_frequency(self, value):
         value = float(value)
+        if not self._minimum_meas_frequency <= value <= self._maximum_meas_frequency:
+            raise ivi.InvalidOptionValueException()
         if not self._driver_operation_simulate:
             self._write("freq %e" % (value))
-        self._attenuation = value
+        self._measurement_frequency = value
         self._set_cache_valid()
 
 
@@ -375,29 +453,188 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     #Measurement Speed
 
 
+    def set_display_parameter(self, param_num, parameter):
+        if parameter not in ParameterMapping\
+                or param_num not in range(1,5): #1,2,3,4
+            raise ivi.ValueNotSupportedException()
+        else:
+            parameter = ParameterMapping[parameter]
 
-    def _get_disable(self):
-        if not self._driver_operation_simulate and not self._get_cache_valid():
-            resp = self._ask("disable?").split(' ')[1]
-            self._disable = bool(int(resp))
-            self._set_cache_valid()
-        return self._disable
-
-    def _set_disable(self, value):
-        value = bool(value)
-        if not self._driver_operation_simulate:
-            self._write("disable %d" % (int(value)))
-        self._disable = value
-        self._set_cache_valid()
-
-    def release(self):
-        self._write('CONF:REM OFF')
+        self._write(':PAR{num!s:s} {pmtr:s}'.format(num=param_num, pmtr=parameter))
 
 
-    def find_capacitance(self, frequency, ): pass
-    def find_inductance(self): pass
-    def find_inductance(self): pass
-    def find_resistance(self): pass
-    def find_impediance(self): pass
+    # def get_param_measurement(self, param_num):
+    #     resp = self._ask(":MEAS?").split()[param_num + 1] #zero indexed vs one indexed
+    #     return resp
 
- 
+    def get_measurement(self, parameter, param_num=1): #if you use other than paramerter 1.
+        # you must make sure all other parameters are defined as not off.
+        #set one display praameter
+        #self.set_measurement_parameter(param_num, parameter)
+        value = self.get_param_measurement(param_num)
+        #value = float(value)
+        return value
+
+    def set_measurement_items(self, items):
+        #dev.lcr.set_measurement_items([ 'CONDUCTANCE','IMPEDANCE'])
+
+        itemEnBytes = bytearray([1, 1, 0]) #set to 0,0,0 to go back to returning default display values.
+
+        for item in items:
+            if item not in ParameterBitMapping:
+                raise ivi.ValueNotSupportedException(item)
+
+            itembits = ParameterBitMapping[item]
+            print(itembits)
+            #set bit in corrisponding register according to bit number
+            #itemEnBytes[itembits[1]] =
+            print(itemEnBytes[itembits[1]] | (0x01 << itembits[0]))
+
+            print(itemEnBytes[itembits[1]])
+
+
+        print(':MEAS:ITEM {mr0!s:s},{mr1!s:s},{mr2!s:s}'
+                    .format(mr0=itemEnBytes[0],
+                            mr1=itemEnBytes[1],
+                            mr2=itemEnBytes[2]))
+
+
+        self._write(':MEAS:ITEM {mr0!s:s},{mr1!s:s},{mr2!s:s}'
+                    .format(mr0=itemEnBytes[0],
+                            mr1=itemEnBytes[1],
+                            mr2=itemEnBytes[2]))
+
+
+        self._current_meas_items = items
+        #read back item register set and populate this - different function
+        #self._expected_meas_order = {'parameter':'spot in list, zero indexed'}
+
+    def get_measurement_items(self):
+        itemEnBytes = self._ask(':MEAS:ITEM?').replace(',',' ').split()
+        itemEnBytes = [int(i) for i in itemEnBytes]
+
+        if len(itemEnBytes) != 3:
+            raise ivi.IOException()
+
+        return itemEnBytes
+
+
+    def _generate_sorted_param_map_keys(self, ParamBitMapping):
+        # beacuse we need to iterate though ParameterBitMapping in acending
+        # list bit# and byte#, create a list of keys ordered by that standard.
+        sortedMapping = {}
+
+        #convert to dict with sortable values first
+        for item in ParamBitMapping:
+            itembits = ParamBitMapping[item]
+            sortedMapping[item] = itembits[0] + (itembits[1] * 8)
+
+        #convert dict to list of keys sorted by dict value
+        self.sortedParameterBitMappingKeys = \
+            sorted(sortedMapping, key=sortedMapping.get, reverse=False)
+
+        #print(self.sortedParameterBitMappingKeys)
+        return self.sortedParameterBitMappingKeys
+
+    def get_measurement_item_order(self):
+        #read back item register set and populate measure order list
+        #self._expected_meas_order = ['parameter1', 'parameter2']
+
+        self._expected_meas_order = []
+
+
+        #get bits of enabled results
+        itemEnBytes = self.get_measurement_items()
+
+        # if all en bytes are 0 we have no data to use
+        # (in actuality, this isn't true, it just prints out disply values, but we have no idea what those are)
+        if all(v == 0 for v in itemEnBytes):
+                raise ivi.IOException()
+
+
+
+        #check if parameter is enabled and add it to the list if so.
+        for item in self.sortedParameterBitMappingKeys:
+            itembits = ParameterBitMapping[item]
+
+            if itemEnBytes[itembits[1]] & (0x01 << itembits[0]):
+                self._expected_meas_order.append(item)
+
+            # print(itemEnBytes)
+            # print(itembits)
+            # print(itemEnBytes[itembits[1]] & (0x01 << itembits[0]))
+
+
+        return self._expected_meas_order
+
+
+    def get_measurements(self): #if you use other than paramerter 1.
+        # you must make sure all other parameters are defined as not off.
+        #set one display praameter
+        #self.set_measurement_parameter(param_num, parameter)
+        #value = self.get_param_measurement(param_num)
+        #value = float(value)
+
+        self._last_measurement_set = {}
+
+        #paralell arrays. order contains designation, resp contains data
+        order = self.get_measurement_item_order()
+        resp = self._ask(":MEAS?").replace(',',' ').split()
+
+        #if we don't get the # of values we expect, somthing is wrong
+        if len(resp) != len(order):
+            raise ivi.IOException()
+
+
+        for (item, value) in zip(order, resp):
+            self._last_measurement_set[item] = float(value)
+
+
+        #get order of measuremet feedback and assign all vlaues to dict definitions
+
+        return self._last_measurement_set
+
+    # def find_capacitance(self, frequency, ): pass
+    # def find_inductance(self): pass
+    # def find_inductance(self): pass
+    # def find_resistance(self): pass
+    # def find_impediance(self): pass
+
+
+    def frequencysweep(self, min_freq, max_freq, step, parameters):
+        # sweeps through frequency by defined steps and returns
+        # dictonary of collected parameters
+
+        #parameters = list of parameters to collect -> ['IMPEDANCE', 'CONDUCTANCE', ..etc]
+
+        self.set_measurement_items(parameters)
+
+        sweepResults = {}
+        for step in range(min_freq, max_freq, step):
+            self._set_frequency(step)
+            delay(1) #todo - generate this based on frequency
+            sweepresults[step] = self.get_measurements()
+
+        return sweepResults
+
+    # ParameterMapping = {
+    #     #param :
+    #     'IMPEDANCE': 'Z',
+    #     'ADMITTANCE': 'Y',
+    #     'IMPEDANCE_PHASE_ANGLE': 'PHASE',
+    #     'REACTANCE': 'X',
+    #     'CONDUCTANCE': 'G',
+    #     'SUBSEPTANCE': 'B',
+    #     'LOSS_FACTOR': 'D',
+    #     'Q_FACTOR': 'Q',
+    #     'DC_RESISTANCE': 'RDC',
+    #     'CONDUCTIVITY': 'S',
+    #     'PERMITTIVITY': 'E',
+    #     'EQUIVALENT_SERIES_RESISTANCE': 'RS',
+    #     'EQUIVALENT_PARALELL_RESISTANCE': 'RP',
+    #     'EQUIVALENT_SERIES_INDUCTANCE': 'LS',
+    #     'EQUIVALENT_PARALELL_INDUCTANCE': 'LP',
+    #     'EQUIVALENT_SERIES_CAPACITANCE': 'CS',
+    #     'EQUIVALENT_PARALELL_CAPACITANCE': 'CP',
+    #     'NO_PARAMETER': 'OFF',
+    #     }
