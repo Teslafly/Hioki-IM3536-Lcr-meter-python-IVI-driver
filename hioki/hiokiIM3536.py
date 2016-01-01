@@ -29,20 +29,6 @@ THE SOFTWARE.
 import ivi
 import time
 
-
-MeasurementFunctionMapping = {
-        'dc_volts': 'volt',
-        'ac_volts': 'volt:ac',
-        'dc_current': 'curr',
-        'ac_current': 'curr:ac',
-        'two_wire_resistance': 'res',
-        'four_wire_resistance': 'fres',
-        'frequency': 'freq',
-        'period': 'per',
-        'temperature': 'temp',
-        'capacitance': 'cap',
-        'continuity': 'cont',}
-
 TriggerSourceMapping = {
         'bus': 'bus',
         'external': 'ext',
@@ -54,28 +40,6 @@ TraceType = set(['clear_write', 'maximum_hold', 'minimum_hold', 'video_average',
 VerticalScale = set(['linear', 'logarithmic'])
 AcquisitionStatus = set(['complete', 'in_progress', 'unknown'])
 
-OutputMode = set(['function', 'arbitrary', 'sequence'])
-OperationMode = set(['continuous', 'burst'])
-StandardWaveform = set(['sine', 'square', 'triangle', 'ramp_up', 'ramp_down', 'dc'])
-SampleClockSource = set(['internal', 'external'])
-MarkerPolarity = set(['active_high', 'active_low'])
-BinaryAlignment = set(['left', 'right'])
-TerminalConfiguration = set(['single_ended', 'differential'])
-TriggerSlope = set(['positive', 'negative', 'either'])
-
-Scaling = set(['linear', 'logarithmic'])
-ExternalCoupling = set(['ac', 'dc'])
-Source = set(['internal', 'external'])
-Polarity = set(['normal', 'inverse'])
-Slope = set(['positive', 'negative'])
-LFGeneratorWaveform = set(['sine', 'square', 'triangle', 'ramp_up', 'ramp_down'])
-SweepMode = set(['none', 'frequency_sweep', 'power_sweep', 'frequency_step', 'power_step', 'list'])
-TriggerSource = set(['immediate', 'external', 'software'])
-IQSource = set(['digital_modulation_base', 'cdma_base', 'tdma_base', 'arb_generator', 'external'])
-DigitalModulationBaseDataSource = set(['external', 'prbs', 'bit_sequence'])
-DigitalModulationBasePRBSType = set(['prbs9', 'prbs11', 'prbs15', 'prbs16', 'prbs20', 'prbs21', 'prbs23'])
-ClockType = set(['bit', 'symbol'])
-
 #actual stuff
 
 #Measurement Mode
@@ -83,15 +47,15 @@ ClockType = set(['bit', 'symbol'])
 OperationMode = set(['LCR','CONT'])
 
 EventMapping = {
-                'event_enable_0': ':ESE0',
-                'event_enable_1': ':ESE1',
-                'event_enable_2': ':ESE2',
-                'event_enable_3': ':ESE3',
-                'event_status_0': ':ESR0',
-                'event_status_1': ':ESR1',
-                'event_status_2': ':ESR2',
-                'event_status_3': ':ESR3',
-                }
+        'event_enable_0': ':ESE0',
+        'event_enable_1': ':ESE1',
+        'event_enable_2': ':ESE2',
+        'event_enable_3': ':ESE3',
+        'event_status_0': ':ESR0',
+        'event_status_1': ':ESR1',
+        'event_status_2': ':ESR2',
+        'event_status_3': ':ESR3',
+        }
 
 ParameterMapping = {
         'IMPEDANCE': 'Z',
@@ -106,11 +70,11 @@ ParameterMapping = {
         'CONDUCTIVITY': 'S',
         'PERMITTIVITY': 'E',
         'EQUIVALENT_SERIES_RESISTANCE': 'RS',
-        'EQUIVALENT_PARALELL_RESISTANCE': 'RP',
+        'EQUIVALENT_PARALLEL_RESISTANCE': 'RP',
         'EQUIVALENT_SERIES_INDUCTANCE': 'LS',
-        'EQUIVALENT_PARALELL_INDUCTANCE': 'LP',
+        'EQUIVALENT_PARALLEL_INDUCTANCE': 'LP',
         'EQUIVALENT_SERIES_CAPACITANCE': 'CS',
-        'EQUIVALENT_PARALELL_CAPACITANCE': 'CP',
+        'EQUIVALENT_PARALLEL_CAPACITANCE': 'CP',
         'NO_PARAMETER': 'OFF',
         }
 
@@ -123,14 +87,14 @@ ParameterBitMapping = {
         'ADMITTANCE':[1,0],
         'IMPEDANCE_PHASE_ANGLE':[2,0],
         'EQUIVALENT_SERIES_CAPACITANCE':[3,0],
-        'EQUIVALENT_PARALELL_CAPACITANCE':[4,0],
+        'EQUIVALENT_PARALLEL_CAPACITANCE':[4,0],
         'LOSS_FACTOR':[5,0],
         'EQUIVALENT_SERIES_INDUCTANCE':[6,0],
-        'EQUIVALENT_PARALELL_INDUCTANCE':[7,0],
+        'EQUIVALENT_PARALLEL_INDUCTANCE':[7,0],
         # reg1
         'Q_FACTOR': [0,1],
         'EQUIVALENT_SERIES_RESISTANCE': [1,1],
-        'EQUIVALENT_PARALELL_RESISTANCE': [3,1],
+        'EQUIVALENT_PARALLEL_RESISTANCE': [3,1],
         'CONDUCTANCE': [2,1],
         'REACTANCE': [4,1],
         'SUBSEPTANCE': [5,1],
@@ -193,59 +157,9 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
                         Specifies the ac frequency applied to the test device
                         """))
 
-
-
-        self.ParameterMapping = {
-            # for :param commands
-            # 'param' : 'internal_designation'
-            'IMPEDANCE': 'Z',
-            'ADMITTANCE': 'Y',
-            'IMPEDANCE_PHASE_ANGLE': 'PHASE',
-            'REACTANCE': 'X',
-            'CONDUCTANCE': 'G',
-            'SUBSEPTANCE': 'B',
-            'LOSS_FACTOR': 'D',
-            'Q_FACTOR': 'Q',
-            'DC_RESISTANCE': 'RDC',
-            'CONDUCTIVITY': 'S',
-            'PERMITTIVITY': 'E',
-            'EQUIVALENT_SERIES_RESISTANCE': 'RS',
-            'EQUIVALENT_PARALELL_RESISTANCE': 'RP',
-            'EQUIVALENT_SERIES_INDUCTANCE': 'LS',
-            'EQUIVALENT_PARALELL_INDUCTANCE': 'LP',
-            'EQUIVALENT_SERIES_CAPACITANCE': 'CS',
-            'EQUIVALENT_PARALELL_CAPACITANCE': 'CP',
-            'NO_PARAMETER': 'OFF',
-            }
-
-        self.ParameterBitMapping = {
-            # for :MEASure:ITEM commands
-            # param : [bitNum, regNum]
-            # reg0
-            'IMPEDANCE':[0,0],
-            'ADMITTANCE':[1,0],
-            'IMPEDANCE_PHASE_ANGLE':[2,0],
-            'EQUIVALENT_SERIES_CAPACITANCE':[3,0],
-            'EQUIVALENT_PARALELL_CAPACITANCE':[4,0],
-            'LOSS_FACTOR':[5,0],
-            'EQUIVALENT_SERIES_INDUCTANCE':[6,0],
-            'EQUIVALENT_PARALELL_INDUCTANCE':[7,0],
-            # reg1
-            'Q_FACTOR': [0,1],
-            'EQUIVALENT_SERIES_RESISTANCE': [1,1],
-            'EQUIVALENT_PARALELL_RESISTANCE': [3,1],
-            'CONDUCTANCE': [2,1],
-            'REACTANCE': [4,1],
-            'SUBSEPTANCE': [5,1],
-            'DC_RESISTANCE': [6,1],
-            # reg2
-            'CONDUCTIVITY': [0,2],
-            'PERMITTIVITY': [1,2],
-            }
-
         #make bitsorted list of above dict keys
         self.sortedParameterBitMappingKeys = \
-            self._generate_sorted_param_map_keys(self.ParameterBitMapping)
+            self._generate_sorted_param_map_keys(ParameterBitMapping)
 
 
 
@@ -385,8 +299,6 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
 #actually need to do error checking here.
 
 
-
-
     #Measurement Mode
     def _get_mode(self):
         if not self._driver_operation_simulate and not self._get_cache_valid():
@@ -453,68 +365,43 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     #Measurement Speed
 
 
-    def set_display_parameter(self, param_num, parameter):
-        if parameter not in ParameterMapping\
+    def set_display_item(self, param_num, item):
+        if item not in ParameterMapping\
                 or param_num not in range(1,5): #1,2,3,4
             raise ivi.ValueNotSupportedException()
         else:
-            parameter = ParameterMapping[parameter]
+            item = ParameterMapping[item]
 
-        self._write(':PAR{num!s:s} {pmtr:s}'.format(num=param_num, pmtr=parameter))
+        self._write(':PAR{num!s:s} {pmtr:s}'.format(num=param_num, pmtr=item))
 
-
-    # def get_param_measurement(self, param_num):
-    #     resp = self._ask(":MEAS?").split()[param_num + 1] #zero indexed vs one indexed
-    #     return resp
-
-    def get_measurement(self, parameter, param_num=1): #if you use other than paramerter 1.
-        # you must make sure all other parameters are defined as not off.
-        #set one display praameter
-        #self.set_measurement_parameter(param_num, parameter)
-        value = self.get_param_measurement(param_num)
-        #value = float(value)
-        return value
 
     def set_measurement_items(self, items):
         #dev.lcr.set_measurement_items([ 'CONDUCTANCE','IMPEDANCE'])
 
-        itemEnBytes = bytearray([1, 1, 0]) #set to 0,0,0 to go back to returning default display values.
+        itemEnBytes = bytearray([0, 0, 0]) #set to 0,0,0 to go back to returning default display values.
+
 
         for item in items:
             if item not in ParameterBitMapping:
                 raise ivi.ValueNotSupportedException(item)
-
             itembits = ParameterBitMapping[item]
-            print(itembits)
             #set bit in corrisponding register according to bit number
-            #itemEnBytes[itembits[1]] =
-            print(itemEnBytes[itembits[1]] | (0x01 << itembits[0]))
-
-            print(itemEnBytes[itembits[1]])
-
-
-        print(':MEAS:ITEM {mr0!s:s},{mr1!s:s},{mr2!s:s}'
-                    .format(mr0=itemEnBytes[0],
-                            mr1=itemEnBytes[1],
-                            mr2=itemEnBytes[2]))
-
+            itemEnBytes[itembits[1]] = (itemEnBytes[itembits[1]] | (0x01 << itembits[0]))
 
         self._write(':MEAS:ITEM {mr0!s:s},{mr1!s:s},{mr2!s:s}'
                     .format(mr0=itemEnBytes[0],
                             mr1=itemEnBytes[1],
                             mr2=itemEnBytes[2]))
-
-
+        #save after successful write
         self._current_meas_items = items
-        #read back item register set and populate this - different function
-        #self._expected_meas_order = {'parameter':'spot in list, zero indexed'}
 
-    def get_measurement_items(self):
+
+    def _get_measurement_items(self):
         itemEnBytes = self._ask(':MEAS:ITEM?').replace(',',' ').split()
         itemEnBytes = [int(i) for i in itemEnBytes]
 
         if len(itemEnBytes) != 3:
-            raise ivi.IOException()
+            raise ivi.IOException('bad number of bytes recieved')
 
         return itemEnBytes
 
@@ -536,23 +423,22 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         #print(self.sortedParameterBitMappingKeys)
         return self.sortedParameterBitMappingKeys
 
-    def get_measurement_item_order(self):
+
+    def _get_measurement_item_order(self):
         #read back item register set and populate measure order list
-        #self._expected_meas_order = ['parameter1', 'parameter2']
-
-        self._expected_meas_order = []
-
+        #self._expected_meas_order = ['parameter1', 'parameter2', ..etc]
 
         #get bits of enabled results
-        itemEnBytes = self.get_measurement_items()
+        itemEnBytes = self._get_measurement_items()
 
         # if all en bytes are 0 we have no data to use
-        # (in actuality, this isn't true, it just prints out disply values, but we have no idea what those are)
+        # (in actuality, this isn't true, it just returns disply
+        # values, but we have no idea what those are and thefore don't support it.)
         if all(v == 0 for v in itemEnBytes):
-                raise ivi.IOException()
+                raise ivi.IOException('no measurement order possible '
+                                      'as no measurements configured')
 
-
-
+        self._expected_meas_order = []
         #check if parameter is enabled and add it to the list if so.
         for item in self.sortedParameterBitMappingKeys:
             itembits = ParameterBitMapping[item]
@@ -560,39 +446,34 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
             if itemEnBytes[itembits[1]] & (0x01 << itembits[0]):
                 self._expected_meas_order.append(item)
 
-            # print(itemEnBytes)
-            # print(itembits)
-            # print(itemEnBytes[itembits[1]] & (0x01 << itembits[0]))
-
-
         return self._expected_meas_order
 
 
-    def get_measurements(self): #if you use other than paramerter 1.
-        # you must make sure all other parameters are defined as not off.
-        #set one display praameter
-        #self.set_measurement_parameter(param_num, parameter)
-        #value = self.get_param_measurement(param_num)
-        #value = float(value)
+    def get_measurements(self):
+        # get measurements and assign with keys.
+        # Does not work when no measurements configured
 
-        self._last_measurement_set = {}
-
-        #paralell arrays. order contains designation, resp contains data
-        order = self.get_measurement_item_order()
+        # paralell arrays. order contains designation, resp contains data
+        order = self._get_measurement_item_order()
         resp = self._ask(":MEAS?").replace(',',' ').split()
 
-        #if we don't get the # of values we expect, somthing is wrong
+        #if we don't get the # of values we expect, something is wrong
         if len(resp) != len(order):
-            raise ivi.IOException()
+            raise ivi.IOException('data config doesnt match data recieved')
 
-
+        self._last_measurement_set = {}
         for (item, value) in zip(order, resp):
             self._last_measurement_set[item] = float(value)
 
-
-        #get order of measuremet feedback and assign all vlaues to dict definitions
-
         return self._last_measurement_set
+
+
+    def do_lcr_measurement(self, frequency, parameters,
+                             voltage = 1, current = 0.01, averaging = None,  ):
+        self.set_measurement_items(parameters)
+        time.sleep(0.1)
+        return get_measurements()
+
 
     # def find_capacitance(self, frequency, ): pass
     # def find_inductance(self): pass
@@ -601,7 +482,20 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     # def find_impediance(self): pass
 
 
-    def frequencysweep(self, min_freq, max_freq, step, parameters):
+
+
+    #measurement aquire frequency vs applied frequency
+
+    def set_display_items(self, items):
+        # takes in list of up to 4 items to display on screen
+        # example = ['REACTANCE','CONDUCTANCE','SUBSEPTANCE','LOSS_FACTOR']
+        for itemNum in ramge(0,4):
+            self.set_display_item(items[itemNum], itemNum)
+
+
+    #interesting utility functions
+
+    def do_frequency_sweep(self, min_freq, max_freq, step, parameters):
         # sweeps through frequency by defined steps and returns
         # dictonary of collected parameters
 
@@ -610,31 +504,39 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         self.set_measurement_items(parameters)
 
         sweepResults = {}
-        for step in range(min_freq, max_freq, step):
-            self._set_frequency(step)
-            delay(1) #todo - generate this based on frequency
-            sweepresults[step] = self.get_measurements()
+        for step in range(min_freq, max_freq + step, step):
+            self._set_measurement_frequency(step)
+            time.sleep(0.1) #todo - generate this based on frequency
+            sweepResults[step] = self.get_measurements()
 
         return sweepResults
 
-    # ParameterMapping = {
-    #     #param :
-    #     'IMPEDANCE': 'Z',
-    #     'ADMITTANCE': 'Y',
-    #     'IMPEDANCE_PHASE_ANGLE': 'PHASE',
-    #     'REACTANCE': 'X',
-    #     'CONDUCTANCE': 'G',
-    #     'SUBSEPTANCE': 'B',
-    #     'LOSS_FACTOR': 'D',
-    #     'Q_FACTOR': 'Q',
-    #     'DC_RESISTANCE': 'RDC',
-    #     'CONDUCTIVITY': 'S',
-    #     'PERMITTIVITY': 'E',
-    #     'EQUIVALENT_SERIES_RESISTANCE': 'RS',
-    #     'EQUIVALENT_PARALELL_RESISTANCE': 'RP',
-    #     'EQUIVALENT_SERIES_INDUCTANCE': 'LS',
-    #     'EQUIVALENT_PARALELL_INDUCTANCE': 'LP',
-    #     'EQUIVALENT_SERIES_CAPACITANCE': 'CS',
-    #     'EQUIVALENT_PARALELL_CAPACITANCE': 'CP',
-    #     'NO_PARAMETER': 'OFF',
-    #     }
+
+    # def csv_frequency_sweep(min_freq, max_freq, step, parameters, filepath)
+    #     #filepath = '?'
+    #     sweepRes = dev.lcr.do_frequency_sweep(min_freq, max_freq, step, parameters,)
+    #
+    #     #open file
+    #     import csv
+    #     with open(filepath, 'w', newline = '') as csvfile:
+    #
+    #         csvWriter = csv.writer(csvfile, delimiter = ' ',
+    #                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    #
+    #
+    #         #create 'ordered' list for header and data order
+    #         headeritem = sweepRes[ sweepRes.keys()[0]]
+    #         headerlist = []
+    #         for key in headeritem:
+    #             headerlist.append(key)
+    #
+    #         #populate header with headerlist
+    #         csvWriter.writerow(headerList)
+    #
+    #         #fill out file
+    #         for step in sweepRes:
+    #             data = sweepRes[step]
+    #             row = []
+    #             for header in headerlist:
+    #                 row.append(data[header])
+    #             csvWriter.writerow(row)
