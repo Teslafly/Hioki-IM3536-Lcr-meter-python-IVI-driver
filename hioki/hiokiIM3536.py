@@ -29,10 +29,7 @@ THE SOFTWARE.
 import ivi
 import time
 
-TriggerSourceMapping = {
-        'bus': 'bus',
-        'external': 'ext',
-        'immediate': 'imm'}
+
 
 AmplitudeUnits = set(['dBm', 'dBmV', 'dBuV', 'volt', 'watt'])
 DetectorType = set(['auto_peak', 'average', 'maximum_peak', 'minimum_peak', 'sample', 'rms'])
@@ -44,7 +41,20 @@ AcquisitionStatus = set(['complete', 'in_progress', 'unknown'])
 
 #Measurement Mode
 # :MODE?
+OnOff = set(['ON','OFF'])
 OperationMode = set(['LCR','CONT'])
+#Measurement Range/s
+MeasurementSignalMode = set(['V','CV', 'CC'])
+AquireSpeed = set(['FAST','MED', 'SLOW', 'SLOW2']) # convert to dict
+TriggerSourceMapping = {
+        'external': 'ext',
+        'immediate': 'imm'}
+ComparatorBinMode = set(['','']) #ABSolute/PERcent/DEViation
+OpenCircuitCompensationReturn = set(['OFF','All','SPOT'])
+BeepJudgement = set(['OFF','IN','NG'])
+Beeptone = set(['A','B','C','D'])
+
+
 
 EventMapping = {
         'event_enable_0': ':ESE0',
@@ -103,6 +113,34 @@ ParameterBitMapping = {
         'CONDUCTIVITY': [0,2],
         'PERMITTIVITY': [1,2],
         }
+
+# ESR0_BitMapping = {
+#     'eng of compensation data':0, #CEM
+#     'end of measurement':1, #EOM
+#     'data incorperation end bit':2,#IDX
+#     'inpedance underflow':3, # MUF
+#     'impedance overflow':4, #MOF
+#     'limit oerflow':5, #LOF
+#     "CC and CV overflow":6, #COF
+#     'non gaurenteed accuracy bit':7, #REF
+# }
+#
+# #todo - only return measurement when EOM bit is set
+
+RangeMapping = {
+    #range : rangeNum
+    '0.100_ohm':1,
+    '1_ohm':2,
+    '10_ohm':3,
+    '100_ohm':4,
+    '1k_ohm':5,
+    '10k_ohm':6,
+    '100k_ohm':7,
+    '1M_ohm':8,
+    '10M_ohm':9,
+    '100M_ohm':10,
+}
+
 
 class hiokiIM3536(ivi.scpi.common.IdnCommand,
              ivi.scpi.common.ErrorQuery,
@@ -165,7 +203,7 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
 
     # FIXME: Most of the stuff in this class is wrong, blindly copied from
     # another driver.  Mostly harmless from the way we currently use it,
-    # but it should be fixed eventually.
+    # but it should bematpl fixed eventually.
 
     def _initialize(self, resource = None, id_query = False, reset = False, **keywargs):
         "Opens an I/O session to the instrument."
@@ -188,35 +226,12 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
 
         # reset
         if reset:
-            self.utility_reset()
+            self._utility_reset()
+            self.write(':PRES') # presets for initialising instrument. actually needed?
 
         #instrument automatically enters remote control state whenever we write to it
         #self._write(":pres") # returns to known preset values. a "factory reset"
 
-    #redundant, error checking parameter setter
-    def _set_param(self, cmd, value, delay=0.0, rnd=None, timeout=10 ):
-        cmddelay = delay
-        timeo = timeout
-        while (timeo > 0):
-            cmddelay = cmddelay + (0.01 * cmddelay) #delay gets exponentially longer with each failed command.
-            if (rnd == None):
-                self._write(cmd + " " + value)
-                time.sleep(cmddelay) #some equipment will fail to apply parameter if asked about that same parameter very short succession.
-                read = origRead = self._ask(cmd + "?")[0:len(value)]
-            else:
-                value = round(float(value),rnd)
-                self._write(cmd + " %e" % value)
-                time.sleep(cmddelay)
-                read = origRead = self._ask(cmd + "?")
-                read = round(float(read),rnd)
-            if(read == value):
-                break
-            timeo -= 1
-
-        if (timeo <= 0):
-            raise AssertionError("Timeout during setting of %s. expecting '%s', got '%s'" % (cmd, value, read))
-
-        return origRead
 
     def _load_id_string(self):
         if self._driver_operation_simulate:
@@ -232,11 +247,13 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
             self._set_cache_valid(True, 'identity_instrument_model')
             self._set_cache_valid(True, 'identity_instrument_firmware_revision')
 
+
     def _get_identity_instrument_manufacturer(self):
         if self._get_cache_valid():
             return self._identity_instrument_manufacturer
         self._load_id_string()
         return self._identity_instrument_manufacturer
+
 
     def _get_identity_instrument_model(self):
         if self._get_cache_valid():
@@ -244,20 +261,25 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         self._load_id_string()
         return self._identity_instrument_model
 
+
     def _get_identity_instrument_firmware_revision(self):
         if self._get_cache_valid():
             return self._identity_instrument_firmware_revision
         self._load_id_string()
         return self._identity_instrument_firmware_revision
 
+
     def _utility_disable(self):
         pass
+
 
     def _utility_lock_object(self):
         pass
 
+
     def _utility_unlock_object(self):
         pass
+
 
     def _utility_reset(self):
         if not self._driver_operation_simulate:
@@ -265,8 +287,17 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
             self._clear()
             self.driver_operation.invalidate_all_attributes()
 
+
+    def _utility_Initialize(self):
+        if not self._driver_operation_simulate:
+            self._write(":PRES")
+            self._clear()
+            self.driver_operation.invalidate_all_attributes()
+
+
     def _utility_reset_with_defaults(self):
         self._utility_reset()
+
 
     def _utility_self_test(self):
         code = 0
@@ -279,57 +310,54 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
                 message = "Self test failed"
         return (code, message)
 
-    #
-    # def _get_disable(self):
-    #     if not self._driver_operation_simulate and not self._get_cache_valid():
-    #         resp = self._ask("disable?").split(' ')[1]
-    #         self._disable = bool(int(resp))
-    #         self._set_cache_valid()
-    #     return self._disable
-    #
-    # def _set_disable(self, value):
-    #     value = bool(value)
-    #     if not self._driver_operation_simulate:
-    #         self._write("disable %d" % (int(value)))
-    #     self._disable = value
-    #     self._set_cache_valid()
 
+    def _wait_sampling_finished(self):
+        #blocks until lcr finished current command
+        #self._write('*TRG') #for external trigger only. we don't support that right now
+        resp = int(self._ask('*opc?').split()[0])
+        #print(resp)
+        return
 
-#instrument specific stuff
-#actually need to do error checking here.
-
+    def _wait_cmd_processing_finished(self):
+        #blocks until lcr finished current command
+        resp = int(self._ask('*opc?').split()[0])
+        #print(resp)
+        return
 
     #Measurement Mode
     def _get_mode(self):
         if not self._driver_operation_simulate and not self._get_cache_valid():
-            resp = self._ask("mode?").split(' ')[0]
+            resp = self._ask("MODE?").split(' ')[0]
             self._set_cache_valid()
             self._mode = resp
         return self._mode
+
 
     def _set_mode(self, value):
         #value can = LCR, CONT (continuous)
         if value not in OperationMode:
             raise ivi.ValueNotSupportedException()
         if not self._driver_operation_simulate:
-            self._write("mode %e" % (value))
+            self._write("MODE %e" % (value))
         self._mode = value
         self._set_cache_valid()
+
 
     #measurement frequency
     def _get_measurement_frequency(self):
         if not self._driver_operation_simulate and not self._get_cache_valid():
-            resp = self._ask("freq?").split()[0]
+            resp = self._ask("FREQ?").split()[0]
             self._measurement_frequency = float(resp)
             self._set_cache_valid()
         return self._measurement_frequency
+
 
     def _set_measurement_frequency(self, value):
         value = float(value)
         if not self._minimum_meas_frequency <= value <= self._maximum_meas_frequency:
             raise ivi.InvalidOptionValueException()
         if not self._driver_operation_simulate:
-            self._write("freq %e" % (value))
+            self._write("FREQ %e" % (value))
         self._measurement_frequency = value
         self._set_cache_valid()
 
@@ -337,35 +365,232 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     #measurement range
     def _get_range(self):
         if not self._driver_operation_simulate and not self._get_cache_valid():
-            resp = self._ask("range?").split()[1]
-            self._attenuation = float(resp)
-            self._set_cache_valid()
-        return self._attenuation
+            resp = self._ask(":RANGE?").split()[0]
+            #self.range = float(resp)
+            #self._set_cache_valid()
+        return resp
 
     def _set_range(self, value):
-        value = float(value)
+        #value = float(value)
         if not self._driver_operation_simulate:
-            self._write("range %e" % (value))
-        self._attenuation = value
+            self._write(":RANGE %e" % (value))
+        #self._range = value
         self._set_cache_valid()
 
+        #measurement range
+    def _get_autorange(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":RANGE:AUTO?").split()[0]
+            #self._set_cache_valid()
+        return resp
+
+    def _set_autorange(self, value):
+        if value not in OnOff:
+            raise ivi.ValueNotSupportedException()
+        if not self._driver_operation_simulate:
+            self._write(":RANGE:AUTO %e" % (value))
+        #self._set_cache_valid()
+
+#Measurement aquiration Speed
+    def _get_aquire_speed(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask("SPEE?").split()[1]
+            self._aquire_speed = resp
+            self._set_cache_valid()
+        return self._aquire_speed
+
+
+    def _set_aquire_speed(self, value):
+        if value not in self.AquireSpeed:
+            raise ivi.InvalidOptionValueException()
+        if not self._driver_operation_simulate:
+            self._write("SPEE %e" % (value))
+        self._aquire_speed = value
+        self._set_cache_valid()
+
+# averaging_setting
+    def _get_averaging_setting(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask("AVER?").split()[1]
+            self._averaging_setting = resp
+            self._set_cache_valid()
+        return self._averaging_setting
+
+
+    def _set_averaging_setting(self, value):
+        #setting value to 1 or 'off' turns averaging off
+
+        if value is 'off' or value is None or value is False:
+            value = 'off'
+        elif  1 <= int(value) <= 256:
+            raise ivi.InvalidOptionValueException()
+
+        if not self._driver_operation_simulate:
+            self._write(":AVER %e" % (value))
+        self._averaging_setting = value
+        self._set_cache_valid()
+        return
 
     #todo - finish range section
 
-    #Measurement Signal Level
-    #LEV
-
-    #Constant current level
-    #LEV:CCURR
-
-
-    #Constant voltage level
-    #LEV:CVOLT
-
-    #Measurement Speed
+    # measurement mode and c/v goals for those goals
+    #Measurement Signal Level mode
+    def _get_meas_sig_mode(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":LEV?").split(' ')[0]
+            self._set_cache_valid()
+            self._meas_sig_mode = resp
+        return self._meas_sig_mode
 
 
-    def set_display_item(self, param_num, item):
+    def _set_meas_sig_mode(self, value):
+        #value can = LCR, CONT (continuous)
+        if value not in MeasurementSignalMode:
+            raise ivi.InvalidOptionValueException()
+        if not self._driver_operation_simulate:
+            self._write(":LEV %e" % (value))
+        self._meas_sig_mode = value
+        self._set_cache_valid()
+
+
+        #Measurement Signal Constant current
+    def _get_meas_sig_cc(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":LEV:CCURR?").split(' ')[0]
+            self._set_cache_valid()
+            self._meas_sig_cc = float(resp)
+        return self._meas_sig_cc
+
+
+    def _set_meas_sig_cc(self, value):
+        value = float(value)
+        #if  <= value <= : ivi.InvalidOptionValueException() # add error checking
+        if not self._driver_operation_simulate:
+            self._write(":LEV:CCURR %e" % (value))
+        self._meas_sig_cc = value
+        self._set_cache_valid()
+
+
+    #Measurement Signal Constant voltage
+    def _get_meas_sig_cv(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":LEV:CVOLT?").split(' ')[0]
+            self._set_cache_valid()
+            self._meas_sig_cv = float(resp)
+        return self._meas_sig_cv
+
+
+    def _set_meas_sig_cv(self, value):
+        value = float(value)
+        #if  <= value <= : ivi.InvalidOptionValueException() # add error checking
+        if not self._driver_operation_simulate:
+            self._write(":LEV:CVOLT %e" % (value))
+        self._meas_sig_cv = value
+        self._set_cache_valid()
+
+
+    #measurement applied current / voltage limiting functions
+    #Measurement Signal Level mode
+    def _get_meas_limit_mode(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":LIM?").split(' ')[0]
+            self._set_cache_valid()
+            self._meas_limit_mode = resp
+        return self._meas_limit_mode
+
+
+    def _set_meas_limit_mode(self, value):
+        #value can = LCR, CONT (continuous)
+        if value not in OnOff:
+            raise ivi.InvalidOptionValueException()
+        if not self._driver_operation_simulate:
+            self._write(":LIM %e" % (value))
+        self._meas_limit_mode = value
+        self._set_cache_valid()
+
+
+    #Measurement Signal Constant current limit
+    def _get_meas_limit_c(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":LIM:CURR?").split(' ')[0]
+            self._set_cache_valid()
+            self._meas_limit_c = float(resp)
+        return self._meas_limit_c
+
+
+    def _set_meas_limit_c(self, value):
+        value = float(value)
+        #if  <= value <= : ivi.InvalidOptionValueException() # add error checking
+        if not self._driver_operation_simulate:
+            self._write(":LIM:CURR %e" % (value))
+        self._meas_limit_c = value
+        self._set_cache_valid()
+
+
+    #Measurement Signal Constant voltage limit
+    def _get_meas_limit_v(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":LIM:VOLT?").split(' ')[0]
+            self._set_cache_valid()
+            self._meas_limit_v = float(resp)
+        return self._meas_limit_v
+
+
+    def _set_meas_limit_v(self, value):
+        value = float(value)
+        #if  <= value <= : ivi.InvalidOptionValueException() # add error checking
+        if not self._driver_operation_simulate:
+            self._write(":LIM:VOLT %e" % (value))
+        self._meas_limit_v = value
+        self._set_cache_valid()
+
+
+    #dc bias functions
+    def _get_dc_bias_en(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":DCBIAS").split(' ')[1]
+            self._dc_bias_en = resp
+            self._set_cache_valid()
+        return self._dc_bias_en
+
+
+    def _set_dc_bias_en(self, value):
+        #value = bool(value)
+        if not self._driver_operation_simulate:
+            self._write(":DCBIAS %d" % (value))
+        self._dc_bias_en = value
+        self._set_cache_valid()
+
+
+    def _get_dc_bias(self):
+        if not self._driver_operation_simulate and not self._get_cache_valid():
+            resp = self._ask(":DCBIAS:LEV?").split(' ')[0]
+            self._dc_bias = float(resp)
+            self._set_cache_valid()
+        return self._dc_bias
+
+
+    def _set_dc_bias(self, value):
+        value = float(value)
+        #if  <= value <= : ivi.InvalidOptionValueException() # add error checking
+        if not self._driver_operation_simulate:
+            self._write(":DCBIAS:LEV %e" % (value))
+        self._dc_bias = value
+        self._set_cache_valid()
+
+    def _control_dc_bias(self, enable, value):
+        if enable is True:
+            self._set_dc_bias_en('ON')
+            self._set_dc_bias(value)
+        elif enable is False:
+            self._set_dc_bias_en('OFF')
+            self._set_dc_bias(0)
+        else:
+            raise ivi.ValueNotSupportedException()
+
+
+    # sets one of the 4 digit displays to a parameter
+    def _set_display_item(self, param_num, item):
         if item not in ParameterMapping\
                 or param_num not in range(1,5): #1,2,3,4
             raise ivi.ValueNotSupportedException()
@@ -374,26 +599,16 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
 
         self._write(':PAR{num!s:s} {pmtr:s}'.format(num=param_num, pmtr=item))
 
+    #sets the items to be returned when asking for a measurement value
+    def _set_measurement_items(self, itemEnBytes):
 
-    def set_measurement_items(self, items):
-        #dev.lcr.set_measurement_items([ 'CONDUCTANCE','IMPEDANCE'])
-
-        itemEnBytes = bytearray([0, 0, 0]) #set to 0,0,0 to go back to returning default display values.
-
-
-        for item in items:
-            if item not in ParameterBitMapping:
-                raise ivi.ValueNotSupportedException(item)
-            itembits = ParameterBitMapping[item]
-            #set bit in corrisponding register according to bit number
-            itemEnBytes[itembits[1]] = (itemEnBytes[itembits[1]] | (0x01 << itembits[0]))
+        if len(itemEnBytes) is not 3:
+            raise ivi.ValueNotSupportedException()
 
         self._write(':MEAS:ITEM {mr0!s:s},{mr1!s:s},{mr2!s:s}'
                     .format(mr0=itemEnBytes[0],
                             mr1=itemEnBytes[1],
                             mr2=itemEnBytes[2]))
-        #save after successful write
-        self._current_meas_items = items
 
 
     def _get_measurement_items(self):
@@ -449,13 +664,16 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         return self._expected_meas_order
 
 
-    def get_measurements(self):
+    def _get_measurements(self):
         # get measurements and assign with keys.
-        # Does not work when no measurements configured
+        # fails when no measurements configured
+
+        self._wait_sampling_finished() #blocks until measurement ready
 
         # paralell arrays. order contains designation, resp contains data
         order = self._get_measurement_item_order()
         resp = self._ask(":MEAS?").replace(',',' ').split()
+        #print (resp) #debug
 
         #if we don't get the # of values we expect, something is wrong
         if len(resp) != len(order):
@@ -468,11 +686,88 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
         return self._last_measurement_set
 
 
+    def _set_measurements(self, items):
+        #dev.lcr.set_measurement_items([ 'CONDUCTANCE','IMPEDANCE'])
+
+        itemEnBytes = bytearray([0, 0, 0]) #set to 0,0,0 to go back to returning default display values.
+
+        for item in items:
+            if item not in ParameterBitMapping:
+                raise ivi.ValueNotSupportedException(item)
+            itembits = ParameterBitMapping[item]
+            #set bit in corrisponding register according to bit number
+            itemEnBytes[itembits[1]] = (itemEnBytes[itembits[1]] | (0x01 << itembits[0]))
+
+        self._set_measurement_items(itemEnBytes)
+
+        #save after successful write
+        self._current_meas_items = items
+
+
     def do_lcr_measurement(self, frequency, parameters,
                              voltage = 1, current = 0.01, averaging = None,  ):
-        self.set_measurement_items(parameters)
+        self._set_measurements(parameters)
         time.sleep(0.1)
         return get_measurements()
+
+
+    def set_display_items(self, items):
+        # takes in list of up to 4 items to display on screen
+        # example = ['REACTANCE','CONDUCTANCE','SUBSEPTANCE','LOSS_FACTOR']
+        for itemNum in ramge(0,4):
+            self.set_display_item(items[itemNum], itemNum)
+
+
+    #implemented in _set_meas_sig_mode and assosiated functions
+    # def _set_measurement_powers(self, vac, iac, vdc, idc):
+    #     self.write('')
+    #
+    #
+    # def _get_measurement_powers(self):
+    #     resp = self.ask('')
+
+
+    def _get_actual_measurement_powers(self):
+        order = ['VAC','IAC','VDC','IDC']
+        resp = self.ask(':MONI?').replace(',',' ').split()
+
+        vAndI = {}
+        for (item, value) in zip(order, resp):
+            self.vAndI[item] = float(value)
+
+        return vAndI
+
+
+
+
+    # ESR0_BitMapping = {
+    #     'eng of compensation data':0, #CEM
+    #     'end of measurement':1, #EOM
+    #     'data incorperation end bit':2,#IDX
+    #     'inpedance underflow':3, # MUF
+    #     'impedance overflow':4, #MOF
+    #     'limit oerflow':5, #LOF
+    #     "CC and CV overflow":6, #COF
+    #     'non gaurenteed accuracy bit':7, #REF
+    # }
+    #
+    # #todo - only return measurement when EOM bit is set
+
+    def _get_event_register(self):
+        self.esrContents = self._ask('*esr?')
+        #todo map to dict of bits
+
+
+    # TODO
+    # Open Circuit Compensation
+    # Short Circuit Compensation
+    # Load Compensation
+    # Cable length compensation
+    # HIGH- Z reject
+    # Display on/off
+    # SOUND
+    # EXT I/O
+    # System Settings
 
 
     # def find_capacitance(self, frequency, ): pass
@@ -482,61 +777,55 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     # def find_impediance(self): pass
 
 
-
-
-    #measurement aquire frequency vs applied frequency
-
-    def set_display_items(self, items):
-        # takes in list of up to 4 items to display on screen
-        # example = ['REACTANCE','CONDUCTANCE','SUBSEPTANCE','LOSS_FACTOR']
-        for itemNum in ramge(0,4):
-            self.set_display_item(items[itemNum], itemNum)
-
-
-    #interesting utility functions
-
-    def do_frequency_sweep(self, min_freq, max_freq, step, parameters):
-        # sweeps through frequency by defined steps and returns
-        # dictonary of collected parameters
-
-        #parameters = list of parameters to collect -> ['IMPEDANCE', 'CONDUCTANCE', ..etc]
-
-        self.set_measurement_items(parameters)
-
-        sweepResults = {}
-        for step in range(min_freq, max_freq + step, step):
-            self._set_measurement_frequency(step)
-            time.sleep(0.1) #todo - generate this based on frequency
-            sweepResults[step] = self.get_measurements()
-
-        return sweepResults
-
-
-    # def csv_frequency_sweep(min_freq, max_freq, step, parameters, filepath)
-    #     #filepath = '?'
-    #     sweepRes = dev.lcr.do_frequency_sweep(min_freq, max_freq, step, parameters,)
+    #useful utility function/s
+    # def csv_frequency_sweep(lcr, filepath, min_freq, max_freq,
+    #                     steps, parameters, style = 'log'):
+    # # creates csv file of parameters over frequency
+    # # style - log or linear - not implemented yet - replace range function
+    # # steps = number of descrete steps
     #
-    #     #open file
-    #     import csv
-    #     with open(filepath, 'w', newline = '') as csvfile:
+    # # example
+    # # csv_frequency_sweep(lcr, 'lcrCSVtest.csv', 100, 1000, 100,['IMPEDANCE'])
     #
-    #         csvWriter = csv.writer(csvfile, delimiter = ' ',
-    #                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    # import numpy as np
+    # import csv
     #
+    # #open file
+    # print('creating new csv in ' + filepath)
+    # with open(filepath, 'w', newline = '') as csvfile:
+    #     frequency_column_header = 'FREQUENCY'
     #
-    #         #create 'ordered' list for header and data order
-    #         headeritem = sweepRes[ sweepRes.keys()[0]]
-    #         headerlist = []
-    #         for key in headeritem:
-    #             headerlist.append(key)
+    #     #create 'ordered' list for header and data order
+    #     headerlist = [frequency_column_header]
+    #     headerlist.extend(parameters)
+    #     print(headerlist)
     #
-    #         #populate header with headerlist
-    #         csvWriter.writerow(headerList)
+    #     writer = csv.DictWriter(csvfile, fieldnames=headerlist)
+    #     writer.writeheader()
     #
-    #         #fill out file
-    #         for step in sweepRes:
-    #             data = sweepRes[step]
-    #             row = []
-    #             for header in headerlist:
-    #                 row.append(data[header])
-    #             csvWriter.writerow(row)
+    #     lcr._set_measurement_items(parameters)
+    #
+    #     #select linear or logrithmic scales
+    #     if style == 'log':
+    #         sweepPoints = np.logspace(np.log10(min_freq),
+    #                                   np.log10(max_freq),
+    #                                   num=steps)
+    #     elif style == 'linear':
+    #         sweepPoints = np.linspace(min_freq,
+    #                                   max_freq,
+    #                                   num=steps)
+    #     else:
+    #         raise Exception('Style: {st!s:s} not supported'.format(st=style))
+    #
+    #     #print(sweepPoints)
+    #
+    #     #collect data
+    #     for step in sweepPoints:
+    #         freq = round(step, 3)
+    #         lcr._set_measurement_frequency(freq)
+    #         #or write function to make sure a measurement was taken with current parameters befor reciving it.
+    #         sweepResults = lcr._get_measurements()
+    #         sweepResults[frequency_column_header] = freq # add frequency key
+    #         writer.writerow(sweepResults) #store
+    #
+    #     #close file?
