@@ -31,30 +31,19 @@ import time
 
 
 
-AmplitudeUnits = set(['dBm', 'dBmV', 'dBuV', 'volt', 'watt'])
-DetectorType = set(['auto_peak', 'average', 'maximum_peak', 'minimum_peak', 'sample', 'rms'])
-TraceType = set(['clear_write', 'maximum_hold', 'minimum_hold', 'video_average', 'view', 'store'])
-VerticalScale = set(['linear', 'logarithmic'])
-AcquisitionStatus = set(['complete', 'in_progress', 'unknown'])
-
-#actual stuff
-
-#Measurement Mode
-# :MODE?
 OnOff = set(['ON','OFF'])
 OperationMode = set(['LCR','CONT'])
-#Measurement Range/s
 MeasurementSignalMode = set(['V','CV', 'CC'])
 AquireSpeed = set(['FAST','MED', 'SLOW', 'SLOW2']) # convert to dict
-TriggerSourceMapping = {
-        'external': 'ext',
-        'immediate': 'imm'}
+
 ComparatorBinMode = set(['','']) #ABSolute/PERcent/DEViation
 OpenCircuitCompensationReturn = set(['OFF','All','SPOT'])
 BeepJudgement = set(['OFF','IN','NG'])
 Beeptone = set(['A','B','C','D'])
 
-
+TriggerSourceMapping = {
+        'external': 'ext',
+        'immediate': 'imm'}
 
 EventMapping = {
         'event_enable_0': ':ESE0',
@@ -707,7 +696,6 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     def do_lcr_measurement(self, frequency, parameters,
                              voltage = 1, current = 0.01, averaging = None,  ):
         self._set_measurements(parameters)
-        time.sleep(0.1)
         return get_measurements()
 
 
@@ -729,11 +717,11 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
 
     def _get_actual_measurement_powers(self):
         order = ['VAC','IAC','VDC','IDC']
-        resp = self.ask(':MONI?').replace(',',' ').split()
+        resp = self._ask(':MONI?').replace(',',' ').split()
 
         vAndI = {}
         for (item, value) in zip(order, resp):
-            self.vAndI[item] = float(value)
+            vAndI[item] = float(value)
 
         return vAndI
 
@@ -759,6 +747,7 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
 
 
     # TODO
+    # dc measurement options
     # Open Circuit Compensation
     # Short Circuit Compensation
     # Load Compensation
@@ -770,11 +759,7 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     # System Settings
 
 
-    # def find_capacitance(self, frequency, ): pass
-    # def find_inductance(self): pass
-    # def find_inductance(self): pass
-    # def find_resistance(self): pass
-    # def find_impediance(self): pass
+
 
 
     #useful utility function/s
@@ -829,3 +814,9 @@ class hiokiIM3536(ivi.scpi.common.IdnCommand,
     #         writer.writerow(sweepResults) #store
     #
     #     #close file?
+
+    # def find_capacitance(self, frequency, ): pass
+    # def find_inductance(self): pass
+    # def find_inductance(self): pass
+    # def find_resistance(self): pass
+    # def find_impediance(self): pass
